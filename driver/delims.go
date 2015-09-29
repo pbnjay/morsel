@@ -44,6 +44,9 @@ func (d *delimConn) QueryColumns(cols []int, offset, limit uint64) (Rows, error)
 
 	// FIXME: very slow if offset is large...
 	for i := uint64(0); i < offset; i++ {
+		if !s.Scan() {
+			break
+		}
 		s.Text()
 		err = s.Err()
 		if err != nil {
@@ -84,7 +87,16 @@ func (d *delimRows) Next(data []string) error {
 	}
 
 	d.row = d.row[:0]
-	d.row = strings.Split(d.s.Text(), d.d.delim)
+	for len(d.row) == 0 {
+		if !d.s.Scan() {
+			return io.EOF
+		}
+
+		d.row = strings.Split(d.s.Text(), d.d.delim)
+		if err := d.s.Err(); err != nil {
+			return err
+		}
+	}
 
 	for i, k := range d.cols {
 		if len(d.row) <= k {
