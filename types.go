@@ -17,7 +17,7 @@ type Morsel struct {
 // text, the document order from left to right).
 func (m *Morsel) QueryColumns(cols []int) (*Rows, error) {
 	r, err := m.driver.QueryColumns(cols, 0, 0)
-	return &Rows{r, make([]*string, len(cols)), nil}, err
+	return &Rows{r, make([]string, len(cols)), nil}, err
 }
 
 // QueryNames enumerates Rows in a Morsel by their name (e.g. in delimited
@@ -40,13 +40,13 @@ func (m *Morsel) QueryNames(colNames []string) (*Rows, error) {
 		}
 	}
 	r, err := m.driver.QueryColumns(colInts, 0, 0)
-	return &Rows{r, make([]*string, len(cols)), nil}, err
+	return &Rows{r, make([]string, len(colInts)), nil}, err
 }
 
 // Rows provides a way to read individual data from each row enumerated.
 type Rows struct {
 	r   driver.Rows
-	row []*string
+	row []string
 	Err error
 }
 
@@ -68,11 +68,7 @@ func (r *Rows) Scan(args ...*string) (err error) {
 	}()
 
 	for i, v := range r.row {
-		if v == nil {
-			args[i] = v
-		} else {
-			*args[i] = *v
-		}
+		*args[i] = "" + v
 	}
 	return nil
 }

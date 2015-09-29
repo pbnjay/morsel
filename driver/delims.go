@@ -75,7 +75,7 @@ type delimRows struct {
 	limit uint64
 }
 
-func (d *delimRows) Next(data []*string) error {
+func (d *delimRows) Next(data []string) error {
 	// NB wrap around ok because it'll only happen
 	// if limit=0 initially (i.e. caller wanted all rows)
 	d.limit--
@@ -87,7 +87,11 @@ func (d *delimRows) Next(data []*string) error {
 	d.row = strings.Split(d.s.Text(), d.d.delim)
 
 	for i, k := range d.cols {
-		*data[i] = d.row[k]
+		if len(d.row) <= k {
+			data[i] = ""
+		} else {
+			data[i] = d.row[k]
+		}
 	}
 
 	return nil

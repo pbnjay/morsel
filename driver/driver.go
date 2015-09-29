@@ -31,9 +31,8 @@ type Conn interface {
 // return those entries.
 type Rows interface {
 	// Next advances to the next record, and copies the column data into
-	// the provided slice. Pointers to nil are used to indicate missing
-	// versus blank results.
-	Next(data []*string) error
+	// the provided slice.
+	Next(data []string) error
 
 	// Close stops enumeration and releases any resources.
 	Close() error

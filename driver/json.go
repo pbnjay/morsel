@@ -98,7 +98,7 @@ type jsonRows struct {
 	limit uint64
 }
 
-func (j *jsonRows) Next(data []*string) error {
+func (j *jsonRows) Next(data []string) error {
 	// NB wrap around ok because it'll only happen
 	// if limit=0 initially (i.e. caller wanted all rows)
 	j.limit--
@@ -111,16 +111,12 @@ func (j *jsonRows) Next(data []*string) error {
 	}
 
 	err := j.dec.Decode(&j.data)
-	if err != nil {
+	if len(j.data) == 0 && err != nil {
 		return err
 	}
 
 	for i, key := range j.cols {
-		if v, f := j.data[key]; !f {
-			data[i] = nil
-		} else {
-			*data[i] = v
-		}
+		data[i] = j.data[key]
 	}
 
 	return nil
