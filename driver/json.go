@@ -2,7 +2,6 @@ package driver
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 )
@@ -55,25 +54,35 @@ func (j *jsonConn) Columns() []string {
 	return j.cols
 }
 
-func (j *jsonConn) QueryColumns(cols []int, offset, limit int) (Rows, error) {
+func (j *jsonConn) QueryColumns(cols []int, offset, limit uint64) (Rows, error) {
 	subset := make([]string, len(cols))
 	for i, x := range cols {
 		subset[i] = j.cols[x]
-	}
-
-	if offset != 0 || limit != 0 {
-		return nil, fmt.Errorf("morsel-json: offset/limit not yet implemented")
 	}
 
 	f, err := os.Open(j.filename)
 	if err != nil {
 		return nil, err
 	}
+
+	row := make(map[string]string)
+	dec := json.NewDecoder(f)
+
+	// FIXME: very slow if offset is large...
+	for i := uint64(0); i < offset; i++ {
+		err = dec.Decode(&row)
+		if err != nil {
+			f.Close()
+			return nil, err
+		}
+	}
+
 	return &jsonRows{
-		f:    f,
-		dec:  json.NewDecoder(f),
-		cols: subset,
-		data: make(map[string]string),
+		f:     f,
+		dec:   dec,
+		cols:  subset,
+		data:  row,
+		limit: limit,
 	}, nil
 }
 
@@ -82,13 +91,21 @@ func (j *jsonConn) Close() error {
 }
 
 type jsonRows struct {
-	f    *os.File
-	dec  *json.Decoder
-	cols []string
-	data map[string]string
+	f     *os.File
+	dec   *json.Decoder
+	cols  []string
+	data  map[string]string
+	limit uint64
 }
 
 func (j *jsonRows) Next(data []*string) error {
+	// NB wrap around ok because it'll only happen
+	// if limit=0 initially (i.e. caller wanted all rows)
+	j.limit--
+	if j.limit == 0 {
+		return io.EOF
+	}
+
 	for k := range j.data {
 		delete(j.data, k)
 	}

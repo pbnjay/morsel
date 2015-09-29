@@ -19,7 +19,7 @@ type Conn interface {
 
 	// QueryColumns begins an enumeration from the beginning offset for
 	// limit number of rows. An offset=0 and limit=0 indicate all data.
-	QueryColumns(cols []int, offset, limit int) (Rows, error)
+	QueryColumns(cols []int, offset, limit uint64) (Rows, error)
 
 	// Close closes the conn and releases any resources including
 	// outstanding Rows instances.

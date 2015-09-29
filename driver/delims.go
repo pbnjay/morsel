@@ -2,7 +2,7 @@ package driver
 
 import (
 	"bufio"
-	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -35,22 +35,30 @@ func (d *delimConn) Columns() []string {
 	return d.cols
 }
 
-func (d *delimConn) QueryColumns(cols []int, offset, limit int) (Rows, error) {
-	if offset != 0 || limit != 0 {
-		return nil, fmt.Errorf("morsel-json: offset/limit not yet implemented")
-	}
-
+func (d *delimConn) QueryColumns(cols []int, offset, limit uint64) (Rows, error) {
 	f, err := os.Open(d.filename)
 	if err != nil {
 		return nil, err
 	}
 	s := bufio.NewScanner(f)
+
+	// FIXME: very slow if offset is large...
+	for i := uint64(0); i < offset; i++ {
+		s.Text()
+		err = s.Err()
+		if err != nil {
+			f.Close()
+			return nil, err
+		}
+	}
+
 	return &delimRows{
-		d:    d.d,
-		f:    f,
-		s:    s,
-		cols: cols,
-		row:  make([]string, len(d.cols)),
+		d:     d.d,
+		f:     f,
+		s:     s,
+		cols:  cols,
+		row:   make([]string, len(d.cols)),
+		limit: limit,
 	}, nil
 }
 
@@ -59,14 +67,22 @@ func (d *delimConn) Close() error {
 }
 
 type delimRows struct {
-	d    *delimDriver
-	f    *os.File
-	s    *bufio.Scanner
-	cols []int
-	row  []string
+	d     *delimDriver
+	f     *os.File
+	s     *bufio.Scanner
+	cols  []int
+	row   []string
+	limit uint64
 }
 
 func (d *delimRows) Next(data []*string) error {
+	// NB wrap around ok because it'll only happen
+	// if limit=0 initially (i.e. caller wanted all rows)
+	d.limit--
+	if d.limit == 0 {
+		return io.EOF
+	}
+
 	d.row = d.row[:0]
 	d.row = strings.Split(d.s.Text(), d.d.delim)
 
